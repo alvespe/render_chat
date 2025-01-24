@@ -1,52 +1,49 @@
 const express = require('express');
-const fetch = require('node-fetch');
+const axios = require('axios');
+const Buffer = require('buffer').Buffer; // Para criar base64
 
 const app = express();
-app.use(express.json());
+app.use(express.json()); // Para lidar com requisições JSON
 
-// Configure o JWT gerado manualmente
-const JWT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImFwcF82NzkzOWNhMmIyZjc4YzZmOTJlOGVlMzIifQ.eyJzY29wZSI6ImFwcCIsImV4cCI6MTczNzgyNjgwMH0.odkiuY0AY29xTJogcrzeL7lW9Zuezucr1ir60KUhD0A"; // Substitua aqui pelo token gerado
+// Configurações do Sunshine Conversations
+const apiKeyId = 'app_6793a7e5b0900d3e32cb870f'; // Substitua pelo seu ID
+const apiKeySecret = 'ujqbEmWhbDzLbIHAHpg9-1pMdTtbMOQwa9OCILojiWmrsShKotnHcnYu_Yy1YnGGoE7P5Et6HBCrWHT931BMNA'; // Substitua pelo seu Secret
 
-// Configuração da rota para iniciar a conversa
-app.post('/start-conversation', async (req, res) => {
+// Rota para iniciar uma conversa
+app.post('/start-chat', async (req, res) => {
+    const { userId, headerText, inputPlaceholder } = req.body;
+
     try {
-        const response = await fetch('https://api.smooch.io/v1/init', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${JWT_TOKEN}`, // JWT aqui
-                'Content-Type': 'application/json'
+        // Codifica a chave no formato base64
+        const basicAuth = Buffer.from(`${apiKeyId}:${apiKeySecret}`).toString('base64');
+
+        // Realiza a requisição para iniciar a conversa
+        const response = await axios.post(
+            'https://api.smooch.io/v1/init',
+            {
+                userId: userId || 'guest_' + Math.random().toString(36).substring(2, 15),
+                customText: {
+                    headerText: headerText || 'Olá! Como posso ajudar?',
+                    inputPlaceholder: inputPlaceholder || 'Digite sua mensagem...'
+                }
             },
-            body: JSON.stringify({
-                // Exemplo de payload para iniciar a conversa
-                userId: req.body.userId || 'default-user-id',
-                device: req.body.device || 'web'
-            })
-        });
+            {
+                headers: {
+                    Authorization: `Basic ${basicAuth}`, // Envia o cabeçalho com autenticação Basic
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
 
-        if (!response.ok) {
-            const errorDetails = await response.text();
-            res.status(response.status).json({
-                error: 'Erro ao iniciar conversa',
-                details: errorDetails
-            });
-            return;
-        }
-
-        const data = await response.json();
-        res.status(200).json({
-            message: 'Conversa iniciada com sucesso',
-            data: data
-        });
+        res.json(response.data);
     } catch (error) {
         res.status(500).json({
-            error: 'Erro interno do servidor',
-            details: error.message
+            error: 'Erro ao iniciar conversa',
+            details: error.response ? error.response.data : error.message
         });
     }
 });
 
-// Inicialização do servidor
-const PORT = process.env.PORT || 3000; // Porta configurada automaticamente no Render
-app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
-});
+// Porta do servidor
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
