@@ -10,7 +10,7 @@ app.post('/start-chat', async (req, res) => {
   try {
     const response = await axios.post('https://api.smooch.io/v1/init', {
       headers: {
-        'Authorization': 'Bearer MwfvzKb6DR3uHlQNkpujOd7Kfyl2kM5_VPTw_qh15aftMN6PCMdKU6QwzQoo5a_9HslXNF60U4ZEjncQ-nyUUA',
+        'Authorization': 'Bearer ""',
         'Content-Type': 'application/json'
       },
       data: {
