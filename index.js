@@ -1,71 +1,52 @@
 const express = require('express');
-const jwt = require('jsonwebtoken');
-const axios = require('axios');
+const fetch = require('node-fetch');
 
 const app = express();
-app.use(express.json()); // Para lidar com requisições JSON
+app.use(express.json());
 
-// Configurações do Sunshine Conversations
-const apiKeyId = 'app_67939ca2b2f78c6f92e8ee32'; // Substitua pelo seu ID
-const apiKeySecret = 'vsrWTxieNWJMAaNsW_eStQdeWcGQ9BbzZClZUR9ZaCIi1D2Qo5YPkFwe1TSpdpvRP_CBt6S0P5tf_TqdKz6qlg'; // Substitua pelo seu Secret
+// Configure o JWT gerado manualmente
+const JWT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImFwcF82NzkzOWNhMmIyZjc4YzZmOTJlOGVlMzIifQ.eyJzY29wZSI6ImFwcCIsImV4cCI6MTczNzgyNjgwMH0.odkiuY0AY29xTJogcrzeL7lW9Zuezucr1ir60KUhD0A"; // Substitua aqui pelo token gerado
 
-// Rota para gerar JWT
-app.get('/generate-jwt', (req, res) => {
+// Configuração da rota para iniciar a conversa
+app.post('/start-conversation', async (req, res) => {
     try {
-        const token = jwt.sign(
-            { scope: 'app' },
-            apiKeySecret,
-            {
-                header: { alg: 'HS256', typ: 'JWT', kid: apiKeyId },
-                expiresIn: '1h' // Expiração de 1 hora
-            }
-        );
-        res.json({ token });
-    } catch (error) {
-        res.status(500).json({ error: 'Erro ao gerar o token' });
-    }
-});
-
-// Rota para iniciar uma conversa
-app.post('/start-chat', async (req, res) => {
-    const { userId, headerText, inputPlaceholder } = req.body;
-
-    try {
-        const token = jwt.sign(
-            { scope: 'app' },
-            apiKeySecret,
-            {
-                header: { alg: 'HS256', typ: 'JWT', kid: apiKeyId },
-                expiresIn: '1h'
-            }
-        );
-
-        const response = await axios.post(
-            'https://api.smooch.io/v1/init',
-            {
-                userId: userId || 'guest_' + Math.random().toString(36).substring(2, 15),
-                customText: {
-                    headerText: headerText || 'Olá! Como posso ajudar?',
-                    inputPlaceholder: inputPlaceholder || 'Digite sua mensagem...'
-                }
+        const response = await fetch('https://api.smooch.io/v1/init', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${JWT_TOKEN}`, // JWT aqui
+                'Content-Type': 'application/json'
             },
-            {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
+            body: JSON.stringify({
+                // Exemplo de payload para iniciar a conversa
+                userId: req.body.userId || 'default-user-id',
+                device: req.body.device || 'web'
+            })
+        });
 
-        res.json(response.data);
+        if (!response.ok) {
+            const errorDetails = await response.text();
+            res.status(response.status).json({
+                error: 'Erro ao iniciar conversa',
+                details: errorDetails
+            });
+            return;
+        }
+
+        const data = await response.json();
+        res.status(200).json({
+            message: 'Conversa iniciada com sucesso',
+            data: data
+        });
     } catch (error) {
         res.status(500).json({
-            error: 'Erro ao iniciar conversa',
-            details: error.response ? error.response.data : error.message
+            error: 'Erro interno do servidor',
+            details: error.message
         });
     }
 });
 
-// Porta do servidor
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+// Inicialização do servidor
+const PORT = process.env.PORT || 3000; // Porta configurada automaticamente no Render
+app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
+});
